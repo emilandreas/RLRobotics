@@ -14,7 +14,7 @@ done = False
 
 observations = np.empty((inputChannels, inputHeight, inputWidth))
 #Each action is made k (4) steps in a row.
-
+a
 while not done:
     env.render()
     obs, reward, done, info = make_action(env.action_space.sample(), env, 1) # take a random action
