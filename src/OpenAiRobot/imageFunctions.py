@@ -10,10 +10,10 @@ def cropImg(img,n, m):
     realN = img.__len__()
     realM = img[0].__len__()
     if n <= realN-topCrop and m <= realM:
-        return img[topCrop:topCrop+n, :m]
+        return img[topCrop:topCrop+n-1, :m-1]
     else:
         print('ERROR CROPPING IMAGE.')
 
 def displayGray(img):
     plt.imshow(img, cmap=plt.get_cmap('gray'))
-    plt.show()
+    #plt.show()
