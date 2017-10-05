@@ -7,10 +7,13 @@ import os
 
 class Agent:
     def __init__(self, options):
-        #create new folder for saving data
+
         if(options['performance']):
             print('Performance run')
         else:
+
+            #create new folder for saving data
+
             print('Training run')
             self.session_name = options['session_name']
             self.folder_path = self.__create_folder()
@@ -20,6 +23,7 @@ class Agent:
         self.visual_epoch_limit = self.n_epochs - n_last_epochs_visual
         self.discount_rate = options['discount_rate']
         self.n_games_pr_epoch = options['n_games_pr_epoch']
+        
         self.policy = network.PolicyGradientModel(options)
         self.score_log = np.array([])
         self.show_sim = options['show_sim']
@@ -29,20 +33,27 @@ class Agent:
         return self
 
     def run_training(self):
+
         save_epoch = 1000
         all_rewards = []
         all_gradients = []
         env = gym.make('CartPole-v0')
         env._max_episode_steps = self.max_env_timesteps
+
         for epoch in range(self.n_epochs):
+
             self.print_satus(epoch)
             temp_score = 0
+
             for game in range(self.n_games_pr_epoch):
+
                 current_rewards = []
                 current_gradients = []
                 done = False
                 obs = env.reset()
+
                 while not done:
+
                     self.__render_env(epoch, env) # Renders only when above limit or show_sim = True
                     action, gradients = self.policy.run_model(obs)
                     obs, reward, done, _ = env.step(action)
