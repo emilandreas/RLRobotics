@@ -5,13 +5,15 @@ import tensorflow.contrib.keras as keras
 
 class PolicyGradientModel:
     def __init__(self, options):
-        self.n_inputs = 4
+        self.n_inputs = options['n_inputs']
         self.n_hidden_layers = options['n_hidden_layers']
         self.n_hidden_width = options['n_hidden_width']
-        self.n_outputs = 1
+        self.n_outputs = 1  # options['n_outputs']
         self.learning_rate = options['learning_rate']
+        self.discrete_actions = options['discrete_actions']
+
         if(not options['performance']):
-            self.training_op, self.action, self.gradients, self.gradient_placeholders = self.__build_model()
+            self.training_op, self.action, self.gradients, self.gradient_placeholders = self.__build_discrete_model()
             self.saver = tf.train.Saver()
 
         self.sess = tf.Session()
@@ -19,7 +21,7 @@ class PolicyGradientModel:
         self.init.run(session=self.sess)
 
 
-    def __build_model(self):
+    def __build_discrete_model(self):
         #Heavily inspired by code from "Hands-On Machine learning"
         optimizer = tf.train.AdamOptimizer(self.learning_rate)
         activation = tf.nn.relu #hidden layer activation function
@@ -35,17 +37,24 @@ class PolicyGradientModel:
                 hidden = self.input
             hidden = tf.layers.dense(hidden, self.n_hidden_width, activation=activation,
                                      use_bias=use_bias, kernel_initializer=weight_initializer)
+        if(self.discrete_actions):
+            logits = tf.layers.dense(hidden, self.n_outputs, kernel_initializer=weight_initializer)
+            output = tf.nn.sigmoid(logits)
 
-        logits = tf.layers.dense(hidden, self.n_outputs, kernel_initializer=weight_initializer)
-        output = tf.nn.sigmoid(logits)
+            #want probability for each action, must extract it from the output
+            p_action = tf.concat(values=[output, 1 - output], axis=1)
 
-        #want probability for each action, must extract it from the output
-        p_action = tf.concat(values=[output, 1 - output], axis=1)
+            #draw one sample from probability of actions
+            action = tf.multinomial(tf.log(p_action), num_samples=1, name='action')
+            label = 1.0 - tf.to_float(action)
+            cost_function = tf.nn.sigmoid_cross_entropy_with_logits(labels=label, logits=logits) #TODO: change this to sparse_sigmoid_cross... osv
 
-        #draw one sample from probability of actions
-        action = tf.multinomial(tf.log(p_action), num_samples=1, name='action')
-        label = 1.0 - tf.to_float(action)
-        cost_function = tf.nn.sigmoid_cross_entropy_with_logits(labels=label, logits=logits) #TODO: change this to sparse_sigmoid_cross... osv
+        else: #Continuous actions
+            logits = tf.layers.dense(hidden, self.n_outputs, kernel_initializer=weight_initializer)
+            action = tf.nn.tanh(logits)
+
+
+
 
         #we want the gradients, extracts them from the cost function
         gradients_and_variables = optimizer.compute_gradients(cost_function)
@@ -59,6 +68,8 @@ class PolicyGradientModel:
             grads_and_vars_feed.append((gradient_placeholder, variable))
         training_op = optimizer.apply_gradients(grads_and_vars_feed, name='training_op')
         return training_op, action, gradients, gradient_placeholders
+
+
     def save_model(self, path):
         self.saver.save(self.sess, path)
 

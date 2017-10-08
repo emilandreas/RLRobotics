@@ -11,12 +11,22 @@ class Agent:
         if(options['performance']):
             print('Performance run')
         else:
-
             #create new folder for saving data
-
             print('Training run')
             self.session_name = options['session_name']
             self.folder_path = self.__create_folder()
+
+        self.env_name = options['env']
+        self.env = gym.make(self.env_name)
+
+        if self.env.action_space.__class__ == gym.spaces.discrete.Discrete:
+            options['discrete_actions'] = True
+            options['n_outputs'] = self.env.action_space.n
+        else:
+            options['discrete_actions'] = False
+            options['n_outputs'] = self.env.action_space.shape[0]
+
+        options['n_inputs'] = self.env.observation_space.shape[0]
 
         self.n_epochs = options['n_max_epochs']
         n_last_epochs_visual = 0
@@ -33,12 +43,9 @@ class Agent:
         return self
 
     def run_training(self):
-
-        save_epoch = 1000
         all_rewards = []
         all_gradients = []
-        env = gym.make('CartPole-v0')
-        env._max_episode_steps = self.max_env_timesteps
+        self.env._max_episode_steps = self.max_env_timesteps
 
         for epoch in range(self.n_epochs):
 
@@ -50,13 +57,13 @@ class Agent:
                 current_rewards = []
                 current_gradients = []
                 done = False
-                obs = env.reset()
+                obs = self.env.reset()
 
                 while not done:
 
-                    self.__render_env(epoch, env) # Renders only when above limit or show_sim = True
+                    self.__render_env(epoch, self.env) # Renders only when above limit or show_sim = True
                     action, gradients = self.policy.run_model(obs)
-                    obs, reward, done, _ = env.step(action)
+                    obs, reward, done, _ = self.env.step(action)
                     current_rewards.append(reward)
                     current_gradients.append(gradients)
 
@@ -73,17 +80,16 @@ class Agent:
             # if epoch % save_epoch == 0:
             #     self.policy.save_model(self.folder_path + r'epoch_{}'.format(epoch))
     def run_performance(self):
-        env = gym.make('CartPole-v0')
-        env._max_episode_steps = self.max_env_timesteps
+        self.env._max_episode_steps = self.max_env_timesteps
         for epoch in range(self.n_epochs):
             current_rewards = []
             score = 0
             done = False
-            obs = env.reset()
+            obs = self.env.reset()
             while not done:
-                self.__render_env(epoch, env)  # Renders only when above limit or show_sim = True
+                self.__render_env(epoch, self.env)  # Renders only when above limit or show_sim = True
                 action = self.policy.run_model_performance(obs)
-                obs, reward, done, _ = env.step(action)
+                obs, reward, done, _ = self.env.step(action)
                 current_rewards.append(reward)
 
             score += sum(current_rewards)
