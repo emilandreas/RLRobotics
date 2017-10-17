@@ -8,6 +8,8 @@ import os
 class Agent:
     def __init__(self, options):
 
+        # Set variables from options
+
         if(options['performance']):
             print('Performance run')
         else:
@@ -19,6 +21,7 @@ class Agent:
         self.env_name = options['env']
         self.env = gym.make(self.env_name)
 
+        # Check which type of action space from
         if self.env.action_space.__class__ == gym.spaces.discrete.Discrete:
             options['discrete_actions'] = True
             options['n_outputs'] = self.env.action_space.n
@@ -29,7 +32,7 @@ class Agent:
         options['n_inputs'] = self.env.observation_space.shape[0]
 
         self.n_epochs = options['n_max_epochs']
-        n_last_epochs_visual = 0
+        n_last_epochs_visual = 0    # Display the last n epochs of the training
         self.visual_epoch_limit = self.n_epochs - n_last_epochs_visual
         self.discount_rate = options['discount_rate']
         self.n_games_pr_epoch = options['n_games_pr_epoch']
@@ -48,20 +51,17 @@ class Agent:
         self.env._max_episode_steps = self.max_env_timesteps
 
         for epoch in range(self.n_epochs):
-
             self.print_satus(epoch)
             temp_score = 0
 
             for game in range(self.n_games_pr_epoch):
-
                 current_rewards = []
                 current_gradients = []
                 done = False
                 obs = self.env.reset()
 
                 while not done:
-
-                    self.__render_env(epoch, self.env) # Renders only when above limit or show_sim = True
+                    self.__render_env(epoch, self.env)  # Renders only when above limit or show_sim = True
                     action, gradients = self.policy.run_model(obs)
                     obs, reward, done, _ = self.env.step(action)
                     current_rewards.append(reward)
@@ -79,6 +79,45 @@ class Agent:
             self.policy.fit_model(feed_dict)
             # if epoch % save_epoch == 0:
             #     self.policy.save_model(self.folder_path + r'epoch_{}'.format(epoch))
+
+    def run_training_cont(self):
+        all_rewards = []
+        all_gradients = []
+        self.env._max_episode_steps = self.max_env_timesteps
+        self._sigma = 1
+        for epoch in range(self.n_epochs):
+            self.print_satus(epoch)
+            temp_score = 0
+
+            for game in range(self.n_games_pr_epoch):
+                current_rewards = []
+                current_gradients = []
+                done = False
+                obs = self.env.reset()
+
+                while not done:
+                    self.__render_env(epoch, self.env)  # Renders only when above limit or show_sim = True
+                    action, gradients = self.policy.run_model(obs)
+                    obs, reward, done, _ = self.env.step(action)
+                    current_rewards.append(reward)
+                    current_gradients.append(gradients)
+
+                temp_score += sum(current_rewards)
+                all_rewards.append(current_rewards)
+                all_gradients.append(current_gradients)
+
+            mean_epoch_score = temp_score/float(self.n_games_pr_epoch)
+            self.score_log = np.append(self.score_log, mean_epoch_score)
+
+            all_rewards = self.__discount_and_normalize_rewards(all_rewards, self.discount_rate)
+            feed_dict = self.__compute_mean_gradients(all_gradients, all_rewards)
+            self.policy.fit_model(feed_dict)
+
+    def _noisify(self, action, epoch):
+        self.sigma*0.9977
+        return np.random.normal(0, np.sqrt(self.sigma))
+
+
     def run_performance(self):
         self.env._max_episode_steps = self.max_env_timesteps
         for epoch in range(self.n_epochs):

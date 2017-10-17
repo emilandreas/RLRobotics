@@ -13,7 +13,7 @@ class PolicyGradientModel:
         self.discrete_actions = options['discrete_actions']
 
         if(not options['performance']):
-            self.training_op, self.action, self.gradients, self.gradient_placeholders = self.__build_discrete_model()
+            self.training_op, self.action, self.gradients, self.gradient_placeholders = self.__build_model()
             self.saver = tf.train.Saver()
 
         self.sess = tf.Session()
@@ -21,7 +21,7 @@ class PolicyGradientModel:
         self.init.run(session=self.sess)
 
 
-    def __build_discrete_model(self):
+    def __build_model(self):
         #Heavily inspired by code from "Hands-On Machine learning"
         optimizer = tf.train.AdamOptimizer(self.learning_rate)
         activation = tf.nn.relu #hidden layer activation function
@@ -46,13 +46,15 @@ class PolicyGradientModel:
 
             #draw one sample from probability of actions
             action = tf.multinomial(tf.log(p_action), num_samples=1, name='action')
-            label = 1.0 - tf.to_float(action)
+            label = 1.0 - tf.to_float(action)  # If action is 1, label (probability of choosing action 0) is 0.
             cost_function = tf.nn.sigmoid_cross_entropy_with_logits(labels=label, logits=logits) #TODO: change this to sparse_sigmoid_cross... osv
 
         else: #Continuous actions
             logits = tf.layers.dense(hidden, self.n_outputs, kernel_initializer=weight_initializer)
             action = tf.nn.tanh(logits)
 
+            label = 1
+            cost_function = tf.nn.sigmoid_cross_entropy_with_logits(labels=label, logits=logits)
 
 
 
@@ -96,3 +98,5 @@ class PolicyGradientModel:
     def close(self):
         #self.sess.close()
         print("closing network")
+
+

@@ -1,5 +1,7 @@
 import gym
 
+
+assert True is False, "this is a test"
 env = gym.make('MountainCarContinuous-v0')
 env.reset()
 tot_reward = 0
