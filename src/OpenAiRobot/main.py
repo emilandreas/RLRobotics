@@ -4,7 +4,7 @@ import time
 
 ##################################################
 # NAME THE SESSION
-session = 'mountaincar_test'
+session = 'mountaincarTest'
 
 # Set parameters
 env = 'MountainCarContinuous-v0'

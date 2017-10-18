@@ -68,9 +68,8 @@ class Agent:
 
                     if not self.discrete_actions:
                         noise = self._noise(epoch)
-                        if noise < 0:
-                            gradients = gradients * -1
-
+                        if noise < 0:  # if negative exploration, we need the negative of the gradients
+                            gradients = [elem * -1 for elem in gradients]
                         action = [action + noise]
 
                     obs, reward, done, _ = self.env.step(action)
@@ -174,12 +173,11 @@ class Agent:
             #         if reward > 0:
             #             print('Hurra!')
 
-            mean_gradients = np.mean(
-                [reward * all_gradients[game_index][step][var_index]
-                 for game_index, rewards in enumerate(all_rewards)
-                 for step, reward in enumerate(rewards)
-                 if reward > 0],  # Only keep the gradients yielding the best rewards, > 0 since normalized
-                axis=0)
+            temp_all_gradients = [reward * all_gradients[game_index][step][var_index]
+                                for game_index, rewards in enumerate(all_rewards)
+                                for step, reward in enumerate(rewards)
+                                if reward > 0]  # Only keep the gradients yielding the best rewards, > 0 since normalized
+            mean_gradients = np.mean(temp_all_gradients, axis=0)
             feed_dict[grad_placeholder] = mean_gradients
         return feed_dict
 

@@ -21,6 +21,9 @@ class PolicyGradientModel:
         self.init.run(session=self.sess)
 
 
+        self.tensorflow_writer = tf.summary.FileWriter('tensorboard', self.sess.graph)
+
+
     def __build_model(self):
         #Heavily inspired by code from "Hands-On Machine learning"
         optimizer = tf.train.AdamOptimizer(self.learning_rate)
@@ -31,11 +34,13 @@ class PolicyGradientModel:
         use_bias = True
 
         #build network
-        self.input = tf.placeholder(tf.float32, shape=[None, self.n_inputs], name='input')
+        with tf.name_scope("layer_input"):
+            self.input = tf.placeholder(tf.float32, shape=[None, self.n_inputs], name='input')
         for l in range(self.n_hidden_layers):
             if l == 0:
                 hidden = self.input
-            hidden = tf.layers.dense(hidden, self.n_hidden_width, activation=activation,
+            with tf.name_scope("layer_{}".format(l+1)):
+                hidden = tf.layers.dense(hidden, self.n_hidden_width, activation=activation,
                                      use_bias=use_bias, kernel_initializer=weight_initializer)
         if(self.discrete_actions):
             logits = tf.layers.dense(hidden, self.n_outputs, kernel_initializer=weight_initializer)
@@ -50,11 +55,12 @@ class PolicyGradientModel:
             cost_function = tf.nn.sigmoid_cross_entropy_with_logits(labels=label, logits=logits) #TODO: change this to sparse_sigmoid_cross... osv
 
         else: #Continuous actions
-            logits = tf.layers.dense(hidden, self.n_outputs, kernel_initializer=weight_initializer)
-            action = tf.nn.tanh(logits)
+            with tf.name_scope("output"):
+                logits = tf.layers.dense(hidden, self.n_outputs, kernel_initializer=weight_initializer)
+                action = tf.nn.tanh(logits)
 
-            label = tf.to_float(action)  + 1
-            cost_function = tf.nn.sigmoid_cross_entropy_with_logits(labels=label, logits=logits)
+                label = tf.to_float(action) + 0.1
+                cost_function = tf.nn.sigmoid_cross_entropy_with_logits(labels=label, logits=logits)
 
 
 
@@ -69,6 +75,9 @@ class PolicyGradientModel:
             gradient_placeholders.append(gradient_placeholder)
             grads_and_vars_feed.append((gradient_placeholder, variable))
         training_op = optimizer.apply_gradients(grads_and_vars_feed, name='training_op')
+
+        # Tensorboard stuff
+
         return training_op, action, gradients, gradient_placeholders
 
 
@@ -83,6 +92,8 @@ class PolicyGradientModel:
         self.input = graph.get_tensor_by_name('Placeholder:0')  # actually 'input:0')
         self.action = graph.get_tensor_by_name('multinomial/Multinomial:0')  # actually'action/Multinomial:0')
 
+    def record_value(self, val, it):
+        self.tensorflow_writer.add_summary(val, it)
 
     def run_model(self, obs):
         action_val, grads_val = self.sess.run([self.action, self.gradients],
@@ -100,3 +111,14 @@ class PolicyGradientModel:
         print("closing network")
 
 
+def variable_summaries(var):
+  """Attach a lot of summaries to a Tensor (for TensorBoard visualization)."""
+  with tf.name_scope('summaries'):
+    mean = tf.reduce_mean(var)
+    tf.summary.scalar('mean', mean)
+    with tf.name_scope('stddev'):
+      stddev = tf.sqrt(tf.reduce_mean(tf.square(var - mean)))
+    tf.summary.scalar('stddev', stddev)
+    tf.summary.scalar('max', tf.reduce_max(var))
+    tf.summary.scalar('min', tf.reduce_min(var))
+    tf.summary.histogram('histogram', var)
