@@ -24,9 +24,11 @@ class Agent:
         # Check which type of action space from
         if self.env.action_space.__class__ == gym.spaces.discrete.Discrete:
             options['discrete_actions'] = True
+            self.discrete_actions = True
             options['n_outputs'] = self.env.action_space.n
         else:
             options['discrete_actions'] = False
+            self.discrete_actions = False
             options['n_outputs'] = self.env.action_space.shape[0]
 
         options['n_inputs'] = self.env.observation_space.shape[0]
@@ -46,11 +48,11 @@ class Agent:
         return self
 
     def run_training(self):
-        all_rewards = []
-        all_gradients = []
         self.env._max_episode_steps = self.max_env_timesteps
-
+        self.sigma = 1  # variance for continuous action spaces
         for epoch in range(self.n_epochs):
+            all_rewards = []
+            all_gradients = []
             self.print_satus(epoch)
             temp_score = 0
 
@@ -63,41 +65,14 @@ class Agent:
                 while not done:
                     self.__render_env(epoch, self.env)  # Renders only when above limit or show_sim = True
                     action, gradients = self.policy.run_model(obs)
-                    obs, reward, done, _ = self.env.step(action)
-                    current_rewards.append(reward)
-                    current_gradients.append(gradients)
 
-                temp_score += sum(current_rewards)
-                all_rewards.append(current_rewards)
-                all_gradients.append(current_gradients)
+                    if not self.discrete_actions:
+                        noise = self._noise(epoch)
+                        if noise < 0:
+                            gradients = gradients * -1
 
-            mean_epoch_score = temp_score/float(self.n_games_pr_epoch)
-            self.score_log = np.append(self.score_log, mean_epoch_score)
+                        action = [action + noise]
 
-            all_rewards = self.__discount_and_normalize_rewards(all_rewards, self.discount_rate)
-            feed_dict = self.__compute_mean_gradients(all_gradients, all_rewards)
-            self.policy.fit_model(feed_dict)
-            # if epoch % save_epoch == 0:
-            #     self.policy.save_model(self.folder_path + r'epoch_{}'.format(epoch))
-
-    def run_training_cont(self):
-        all_rewards = []
-        all_gradients = []
-        self.env._max_episode_steps = self.max_env_timesteps
-        self._sigma = 1
-        for epoch in range(self.n_epochs):
-            self.print_satus(epoch)
-            temp_score = 0
-
-            for game in range(self.n_games_pr_epoch):
-                current_rewards = []
-                current_gradients = []
-                done = False
-                obs = self.env.reset()
-
-                while not done:
-                    self.__render_env(epoch, self.env)  # Renders only when above limit or show_sim = True
-                    action, gradients = self.policy.run_model(obs)
                     obs, reward, done, _ = self.env.step(action)
                     current_rewards.append(reward)
                     current_gradients.append(gradients)
@@ -113,7 +88,8 @@ class Agent:
             feed_dict = self.__compute_mean_gradients(all_gradients, all_rewards)
             self.policy.fit_model(feed_dict)
 
-    def _noisify(self, action, epoch):
+
+    def _noise(self,  epoch):
         self.sigma*0.9977
         return np.random.normal(0, np.sqrt(self.sigma))
 
@@ -184,12 +160,25 @@ class Agent:
 
     def __compute_mean_gradients(self, all_gradients, all_rewards):
         feed_dict = {}
+
+        #  If continuous action space, only the gradients from the best actions are kept and used
+        # if self.env.action_space.__class__ == gym.spaces.discrete.Discrete:
+        #     threshold = -np.inf
+        # else:
+        #     threshold = np.mean(np.concatenate(all_rewards))
+
         for var_index, grad_placeholder in enumerate(self.policy.gradient_placeholders):
+
+            # for game_index, rewards in enumerate(all_rewards):
+            #     for step, reward in enumerate(rewards):
+            #         if reward > 0:
+            #             print('Hurra!')
 
             mean_gradients = np.mean(
                 [reward * all_gradients[game_index][step][var_index]
                  for game_index, rewards in enumerate(all_rewards)
-                 for step, reward in enumerate(rewards)],
+                 for step, reward in enumerate(rewards)
+                 if reward > 0],  # Only keep the gradients yielding the best rewards, > 0 since normalized
                 axis=0)
             feed_dict[grad_placeholder] = mean_gradients
         return feed_dict

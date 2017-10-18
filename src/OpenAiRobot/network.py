@@ -53,7 +53,7 @@ class PolicyGradientModel:
             logits = tf.layers.dense(hidden, self.n_outputs, kernel_initializer=weight_initializer)
             action = tf.nn.tanh(logits)
 
-            label = 1
+            label = tf.to_float(action)  + 1
             cost_function = tf.nn.sigmoid_cross_entropy_with_logits(labels=label, logits=logits)
 
 
