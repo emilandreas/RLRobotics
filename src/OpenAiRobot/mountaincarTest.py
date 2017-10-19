@@ -1,16 +1,17 @@
 import gym
 
 
-assert True is False, "this is a test"
 env = gym.make('MountainCarContinuous-v0')
 env.reset()
 tot_reward = 0
+obs = [0,0]
 for _ in range(1000):
     env.render()
     action = env.action_space.sample()
-    obs, r, done, info = env.step([action]) # take a random action
+    obs[1] *= 1000
+    obs, r, done, info = env.step([-2]) # take a random action
     tot_reward += r
-    print(r, tot_reward)
+    print(obs[1])
     a = env.observation_space
     e = env.action_space
     if done:

@@ -49,7 +49,7 @@ class Agent:
 
     def run_training(self):
         self.env._max_episode_steps = self.max_env_timesteps
-        self.sigma = 1  # variance for continuous action spaces
+        self.sigma = 0.1  # variance for continuous action spaces
         for epoch in range(self.n_epochs):
             all_rewards = []
             all_gradients = []
@@ -64,15 +64,24 @@ class Agent:
 
                 while not done:
                     self.__render_env(epoch, self.env)  # Renders only when above limit or show_sim = True
-                    action, gradients = self.policy.run_model(obs)
+
+                    if not self.discrete_actions:
+                        action, gradients = self.policy.run_model(np.array([obs[0], obs[1]*10]))
+                    else:
+                        action, gradients = self.policy.run_model(obs)
 
                     if not self.discrete_actions:
                         noise = self._noise(epoch)
                         if noise < 0:  # if negative exploration, we need the negative of the gradients
                             gradients = [elem * -1 for elem in gradients]
+                        if game == self.n_games_pr_epoch - 1:
+                            print("\t Action: {}, Noise: {}".format(action, noise))
                         action = [action + noise]
 
                     obs, reward, done, _ = self.env.step(action)
+                    if reward > 0:
+                        print("You car made it!!!!!")
+
                     current_rewards.append(reward)
                     current_gradients.append(gradients)
 
@@ -81,6 +90,7 @@ class Agent:
                 all_gradients.append(current_gradients)
 
             mean_epoch_score = temp_score/float(self.n_games_pr_epoch)
+            print("Score: {}".format(mean_epoch_score))
             self.score_log = np.append(self.score_log, mean_epoch_score)
 
             all_rewards = self.__discount_and_normalize_rewards(all_rewards, self.discount_rate)
