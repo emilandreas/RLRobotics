@@ -21,6 +21,7 @@ class PolicyGradientModel:
         self.init.run(session=self.sess)
 
 
+
         self.tensorflow_writer = tf.summary.FileWriter('tensorboard', self.sess.graph)
 
 

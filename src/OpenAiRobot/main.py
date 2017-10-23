@@ -4,11 +4,11 @@ import time
 
 ##################################################
 # NAME THE SESSION
-session = 'mountaincarTest2'
+session = 'CartPoleLowgames'
 
 # Set parameters
-env = 'MountainCarContinuous-v0'
-# env = 'CartPole-v0'
+# env = 'MountainCarContinuous-v0'
+env = 'CartPole-v0'
 n_max_epochs = 10000
 n_games_pr_epoch = 10
 discount_rate_grid = [0.95, 0.95, 0.95, 0.99, 0.99, 0.99]

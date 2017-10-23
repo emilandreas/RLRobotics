@@ -79,8 +79,8 @@ class Agent:
                         action = [action + noise]
 
                     obs, reward, done, _ = self.env.step(action)
-                    if reward > 0:
-                        print("You car made it!!!!!")
+                    # if reward > 0:
+                    #     print("You car made it!!!!!")
 
                     current_rewards.append(reward)
                     current_gradients.append(gradients)
