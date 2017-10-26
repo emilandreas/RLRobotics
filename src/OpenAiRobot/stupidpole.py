@@ -1,6 +1,10 @@
 import gym
-env = gym.make('CartPole-v0')
+import numpy as np
+import ContinuousCartPole
+env = gym.make('ContinuousCartPole-v0')
 env.reset()
 for _ in range(1000):
     env.render()
-    env.step(env.action_space.sample()) # take a random action
+    action = np.array([0])
+    env.step(action) # take a random action
+    print(action)
