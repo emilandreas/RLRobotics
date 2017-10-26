@@ -3,7 +3,8 @@ import numpy as np
 import ContinuousCartPole
 env = gym.make('ContinuousCartPole-v0')
 env.reset()
-for _ in range(1000):
+done = False
+while not done:
     env.render()
     action = np.array([0])
     env.step(action) # take a random action

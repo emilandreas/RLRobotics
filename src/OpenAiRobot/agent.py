@@ -49,7 +49,6 @@ class Agent:
 
     def run_training(self):
         self.env._max_episode_steps = self.max_env_timesteps
-        self.sigma = 0.1  # variance for continuous action spaces
         for epoch in range(self.n_epochs):
             all_rewards = []
             all_gradients = []
@@ -64,35 +63,29 @@ class Agent:
 
                 while not done:
                     self.__render_env(epoch, self.env)  # Renders only when above limit or show_sim = True
+                    action, gradients = self.policy.run_model(obs)
 
-                    if not self.discrete_actions:
-                        action, gradients = self.policy.run_model(np.array([obs[0], obs[1]*10]))
+                    if self.discrete_actions:
+                        obs, reward, done, _ = self.env.step(action)
                     else:
-                        action, gradients = self.policy.run_model(obs)
-
-                    if not self.discrete_actions:
-                        noise = self._noise(epoch)
-                        if noise < 0:  # if negative exploration, we need the negative of the gradients
-                            gradients = [elem * -1 for elem in gradients]
-                        if game == self.n_games_pr_epoch - 1:
-                            print("\t Action: {}, Noise: {}".format(action, noise))
-                        action = [action + noise]
-
-                    obs, reward, done, _ = self.env.step(action)
-                    # if reward > 0:
-                    #     print("You car made it!!!!!")
+                        obs, reward, done, _ = self.env.step([action])
+                    if reward > 0:
+                        print("You car made it!!!!!")
 
                     current_rewards.append(reward)
                     current_gradients.append(gradients)
 
-                temp_score += sum(current_rewards)
-                all_rewards.append(current_rewards)
-                all_gradients.append(current_gradients)
+                rewardSum = sum(current_rewards)
+                temp_score += rewardSum
+                if self.env_name != 'MountainCarContinuous-v0' or reward > 0:
+                    all_rewards.append(current_rewards)
+                    all_gradients.append(current_gradients)
 
             mean_epoch_score = temp_score/float(self.n_games_pr_epoch)
             print("Score: {}".format(mean_epoch_score))
             self.score_log = np.append(self.score_log, mean_epoch_score)
-
+            if not all_rewards:
+                continue
             all_rewards = self.__discount_and_normalize_rewards(all_rewards, self.discount_rate)
             feed_dict = self.__compute_mean_gradients(all_gradients, all_rewards)
             self.policy.fit_model(feed_dict)
@@ -113,7 +106,10 @@ class Agent:
             while not done:
                 self.__render_env(epoch, self.env)  # Renders only when above limit or show_sim = True
                 action = self.policy.run_model_performance(obs)
-                obs, reward, done, _ = self.env.step(action)
+                if self.discrete_actions:
+                    obs, reward, done, _ = self.env.step(action)
+                else:
+                    obs, reward, done, _ = self.env.step([action])
                 current_rewards.append(reward)
 
             score += sum(current_rewards)
@@ -170,18 +166,7 @@ class Agent:
     def __compute_mean_gradients(self, all_gradients, all_rewards):
         feed_dict = {}
 
-        #  If continuous action space, only the gradients from the best actions are kept and used
-        # if self.env.action_space.__class__ == gym.spaces.discrete.Discrete:
-        #     threshold = -np.inf
-        # else:
-        #     threshold = np.mean(np.concatenate(all_rewards))
-
         for var_index, grad_placeholder in enumerate(self.policy.gradient_placeholders):
-
-            # for game_index, rewards in enumerate(all_rewards):
-            #     for step, reward in enumerate(rewards):
-            #         if reward > 0:
-            #             print('Hurra!')
 
             temp_all_gradients = [reward * all_gradients[game_index][step][var_index]
                                 for game_index, rewards in enumerate(all_rewards)

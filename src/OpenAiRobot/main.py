@@ -4,14 +4,15 @@ import time
 
 ##################################################
 # NAME THE SESSION
-session = 'CartPoleLowgames'
+session = 'pendulumtest'
 
 # Set parameters
+env = 'Pendulum-v0'
+# env = 'CartPole-v0'
 # env = 'MountainCarContinuous-v0'
-env = 'CartPole-v0'
-n_max_epochs = 10000
-n_games_pr_epoch = 10
-discount_rate_grid = [0.95, 0.95, 0.95, 0.99, 0.99, 0.99]
+n_max_epochs = 2000
+n_games_pr_epoch = 100
+discount_rate_grid = [0.95, 0.99]
 max_env_timesteps = 1000
 
 learning_rates_grid = [0.01]
