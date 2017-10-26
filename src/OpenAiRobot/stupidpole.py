@@ -1,6 +1,8 @@
 import gym
-env = gym.make('CartPole-v0')
+env = gym.make('Pendulum-v0')
 env.reset()
-for _ in range(1000):
+done = False
+while not done:
     env.render()
-    env.step(env.action_space.sample()) # take a random action
+    obs, rew, done,_ = env.step(env.action_space.sample()) # take a random action
+    print("obs: {}, rew: {}, done: {}".format(obs,rew,done))

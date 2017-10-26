@@ -5,7 +5,7 @@ learning_rate = 0.01
 weight_initializer = tf.contrib.layers.variance_scaling_initializer()
 
 target = tf.placeholder(tf.float32, shape=[None, 1])
-obs_input = tf.placeholder(tf.float32, shape=[None, 1])
+obs_input = tf.placeholder(tf.float32, shape=[None, 2])
 #  Separate NN for mean modeling
 hidden = tf.layers.dense(obs_input, 4, activation=tf.nn.relu, use_bias=True,
                          kernel_initializer=weight_initializer)
@@ -26,3 +26,5 @@ loss = -tf.reduce_mean(log_prob)
 optimizer = tf.train.AdamOptimizer(learning_rate=learning_rate)
 
 # ... and then optimizer.compute_gradients() and the rest
+gradients = optimizer.compute_gradients(loss)
+print(gradients)
