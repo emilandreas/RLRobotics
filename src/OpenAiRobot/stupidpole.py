@@ -7,5 +7,5 @@ done = False
 while not done:
     env.render()
     action = np.array([0])
-    env.step(action) # take a random action
+    env.step(action)
     print(action)

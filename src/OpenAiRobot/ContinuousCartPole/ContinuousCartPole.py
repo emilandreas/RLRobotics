@@ -56,6 +56,7 @@ class ContinuousCartPole(gym.Env):
         return [seed]
 
     def _step(self, action):
+        action[0] = max(min(action[0], 1), -1)
         assert self.action_space.contains(action), "%r (%s) invalid"%(action, type(action))
         state = self.state
         x, x_dot, theta, theta_dot = state

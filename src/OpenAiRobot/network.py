@@ -15,7 +15,7 @@ class PolicyGradientModel:
             if(self.discrete_actions):
                 self.training_op, self.action, self.gradients, self.gradient_placeholders = self.__build_discrete_model()
             else:
-                self.training_op, self.action, self.gradients, self.gradient_placeholders = self.__build_continuous_model()
+                self.training_op, self.action, self.gradients, self.gradient_placeholders,self.stddiv = self.__build_continuous_model()
             self.saver = tf.train.Saver()
 
         self.sess = tf.Session()
@@ -32,7 +32,7 @@ class PolicyGradientModel:
         activation = tf.nn.relu #hidden layer activation function
 
         #define inializer rule for the weights
-        weight_initializer = tf.contrib.layers.variance_scaling_initializer()
+        weight_initializer = tf.contrib.layers.variance_scaling_initializer(factor=4.0)
         use_bias = True
 
         #build NN to model mean
@@ -56,25 +56,27 @@ class PolicyGradientModel:
         output_mean_model = tf.nn.tanh(output)  # -1 < actionspace < 1
 
 
-        #  Another separate NN for std. deviation modeling
-        hidden = tf.layers.dense(self.input, self.n_hidden_width, activation=tf.nn.relu, use_bias=True,
-                                 kernel_initializer=weight_initializer)
-        #  Extract weights
-        # weightsInStdDev1= tf.get_default_graph().get_tensor_by_name(os.path.split(hidden.name)[0] + '/kernel:0')
-        # biasInStdDev1 = tf.get_default_graph().get_tensor_by_name(os.path.split(hidden.name)[0] + '/bias:0')
-
-        output = tf.layers.dense(hidden, 1, activation=tf.nn.relu, use_bias=True,
-                                 kernel_initializer=weight_initializer)
-        #  Extract weights
-        # weightsInStdDev2 = tf.get_default_graph().get_tensor_by_name(os.path.split(output.name)[0] + '/kernel:0')
-        # biasInStdDev2 = tf.get_default_graph().get_tensor_by_name(os.path.split(output.name)[0] + '/bias:0')
-
-        output_stddiv_model = tf.exp(output)  # actionspace > 0
+        # #  Another separate NN for std. deviation modeling
+        # const_input = tf.constant(1, dtype=tf.float32, shape=[1,1])
+        # hidden = tf.layers.dense(const_input, self.n_hidden_width, activation=tf.nn.relu, use_bias=True,
+        #                          kernel_initializer=weight_initializer)
+        # #  Extract weights
+        # # weightsInStdDev1= tf.get_default_graph().get_tensor_by_name(os.path.split(hidden.name)[0] + '/kernel:0')
+        # # biasInStdDev1 = tf.get_default_graph().get_tensor_by_name(os.path.split(hidden.name)[0] + '/bias:0')
+        #
+        # output = tf.layers.dense(hidden, 1, activation=tf.nn.relu, use_bias=True,
+        #                          kernel_initializer=weight_initializer)
+        # #  Extract weights
+        # # weightsInStdDev2 = tf.get_default_graph().get_tensor_by_name(os.path.split(output.name)[0] + '/kernel:0')
+        # # biasInStdDev2 = tf.get_default_graph().get_tensor_by_name(os.path.split(output.name)[0] + '/bias:0')
+        #
+        # output_stddiv_model = tf.exp(output)  # actionspace > 0
 
         #  Use the two networks to model a distribution over the action space
-        dist = tf.contrib.distributions.Normal(loc=output_mean_model, scale=output_stddiv_model)
-        action = dist.sample(name='action')
-
+        stddiv = tf.placeholder(tf.float32, shape=[None, 1])
+        dist = tf.contrib.distributions.Normal(loc=output_mean_model, scale=stddiv)
+        action = tf.stop_gradient(dist.sample(name='action'))
+        tf.maximum()
         log_prob = dist.log_prob(action)
         loss = -tf.reduce_mean(log_prob)
 
@@ -95,7 +97,7 @@ class PolicyGradientModel:
         for var in tf.get_collection(tf.GraphKeys.TRAINABLE_VARIABLES):
             tf.summary.histogram(var.name, var)
         self.merged_summary = tf.summary.merge_all()
-        return training_op, action, gradients, gradient_placeholders
+        return training_op, action, gradients, gradient_placeholders, stddiv
 
     def __build_discrete_model(self):
         #Heavily inspired by code from "Hands-On Machine learning"
@@ -163,9 +165,9 @@ class PolicyGradientModel:
     def record_value(self, val, it):
         self.tensorflow_writer.add_summary(val, it)
 
-    def run_model(self, obs):
+    def run_model(self, obs, stddiv):
         action_val, grads_val = self.sess.run([self.action, self.gradients],
-                              feed_dict={self.input: obs.reshape(1, self.n_inputs)})
+                              feed_dict={self.input: obs.reshape(1, self.n_inputs),self.stddiv: stddiv.reshape(1, 1)})
         return action_val[0][0], grads_val
     def fit_model(self, feed_dict):
         self.sess.run(self.training_op, feed_dict=feed_dict)

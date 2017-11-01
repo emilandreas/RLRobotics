@@ -4,20 +4,21 @@ import time
 
 ##################################################
 # NAME THE SESSION
-session = 'pendulumtest'
+session = 'ContinuousCartRunWstddiv'
 
 # Set parameters
-env = 'Pendulum-v0'
+# env = 'Pendulum-v0'
 # env = 'CartPole-v0'
+env = 'ContinuousCartPole-v0'
 # env = 'MountainCarContinuous-v0'
-n_max_epochs = 2000
+n_max_epochs = 5000
 n_games_pr_epoch = 100
-discount_rate_grid = [0.95, 0.99]
+discount_rate_grid = [0.95]
 max_env_timesteps = 1000
 
 learning_rates_grid = [0.01]
-n_hidden_layers_grid = [1]
-n_hidden_width_grid = [4]
+n_hidden_layers_grid = [2]
+n_hidden_width_grid = [10]
 ##################################################
 
 #  Run training session

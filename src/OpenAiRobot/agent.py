@@ -1,5 +1,6 @@
 import numpy as np
 import gym
+import ContinuousCartPole
 import network
 import matplotlib.pyplot as plt
 from datetime import datetime
@@ -49,6 +50,7 @@ class Agent:
 
     def run_training(self):
         self.env._max_episode_steps = self.max_env_timesteps
+        stddiv = 0.8*2
         for epoch in range(self.n_epochs):
             all_rewards = []
             all_gradients = []
@@ -63,17 +65,20 @@ class Agent:
 
                 while not done:
                     self.__render_env(epoch, self.env)  # Renders only when above limit or show_sim = True
-                    action, gradients = self.policy.run_model(obs)
 
                     if self.discrete_actions:
+                        action, gradients = self.policy.run_model(obs)
                         obs, reward, done, _ = self.env.step(action)
                     else:
-                        obs, reward, done, _ = self.env.step([action])
-                    if reward > 0:
-                        print("You car made it!!!!!")
+                        action, gradients = self.policy.run_model(obs, np.array([stddiv]))
+                        obs, reward, done, _ = self.env.step(np.array([action]))
+                    # if reward > 0:
+                    #     print("You car made it!!!!!")
 
                     current_rewards.append(reward)
                     current_gradients.append(gradients)
+                    if game == self.n_games_pr_epoch - 1:
+                        print("Action: {}".format(action))
 
                 rewardSum = sum(current_rewards)
                 temp_score += rewardSum
@@ -81,11 +86,17 @@ class Agent:
                     all_rewards.append(current_rewards)
                     all_gradients.append(current_gradients)
 
+            if epoch % 100 == 0:
+                if epoch == 300:
+                    stddiv = 0.8
+                else:
+                    stddiv *= 0.5
+            print("Stddiv: {}".format(stddiv))
             mean_epoch_score = temp_score/float(self.n_games_pr_epoch)
             print("Score: {}".format(mean_epoch_score))
             self.score_log = np.append(self.score_log, mean_epoch_score)
-            if not all_rewards:
-                continue
+            # if not all_rewards:
+            #     continue
             all_rewards = self.__discount_and_normalize_rewards(all_rewards, self.discount_rate)
             feed_dict = self.__compute_mean_gradients(all_gradients, all_rewards)
             self.policy.fit_model(feed_dict)
@@ -105,11 +116,12 @@ class Agent:
             obs = self.env.reset()
             while not done:
                 self.__render_env(epoch, self.env)  # Renders only when above limit or show_sim = True
-                action = self.policy.run_model_performance(obs)
                 if self.discrete_actions:
+                    action = self.policy.run_model_performance(obs)
                     obs, reward, done, _ = self.env.step(action)
                 else:
-                    obs, reward, done, _ = self.env.step([action])
+                    action = self.policy.run_model_performance(obs, 0)
+                    obs, reward, done, _ = self.env.step(np.array([action]))
                 current_rewards.append(reward)
 
             score += sum(current_rewards)

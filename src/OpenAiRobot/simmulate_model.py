@@ -1,6 +1,7 @@
 import agent
 
-env = 'MountainCarContinuous-v0'
+env = 'ContinuousCartPole-v0'
+# env = 'MountainCarContinuous-v0'
 # env = 'CartPole-v0'
 options = {'env': env,
            'n_max_epochs': 3000,
@@ -17,8 +18,9 @@ options = {'env': env,
 with agent.Agent(options) as cart_agent:
     #cart_agent = agent.Agent(options)
     try:
+        path = 'training_log/ContinuousCartRun/2017-10-30_15_14_52'
         # path = 'training_log/over_weekend_1/2017-09-15_20_33_01'
-        path = 'training_log/testytest/2017-10-23_14_12_13'
+        # path = 'training_log/testytest/2017-10-23_14_12_13'
         meta_path = path + '/' + 'result_model.meta'
         cart_agent.policy.restore_model(meta_path, path)
         cart_agent.run_performance()
