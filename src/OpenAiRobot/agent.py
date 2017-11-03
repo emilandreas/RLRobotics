@@ -86,7 +86,7 @@ class Agent:
                     all_rewards.append(current_rewards)
                     all_gradients.append(current_gradients)
 
-            if epoch % 300 == 0:
+            if epoch % 100 == 0:
                 stddiv *= 0.5
             # stddiv *= 0.996
             print("Stddiv: {}".format(stddiv))

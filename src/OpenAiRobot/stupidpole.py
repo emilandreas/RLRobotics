@@ -6,6 +6,6 @@ env.reset()
 done = False
 while not done:
     env.render()
-    action = np.array([0])
+    action = np.array(env.action_space.sample())
     env.step(action)
     print(action)

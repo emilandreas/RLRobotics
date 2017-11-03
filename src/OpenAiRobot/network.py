@@ -39,13 +39,15 @@ class PolicyGradientModel:
         #build NN to model mean
         with tf.name_scope("layer_input"):
             self.input = tf.placeholder(tf.float32, shape=[None, self.n_inputs], name='input')
+        # if self.dropout:
+        #     self.input = tf.layers.dropout(self.input, rate=0.5)
         for l in range(self.n_hidden_layers):
             if l == 0:
                 hidden = self.input
-            if self.dropout:
-                hidden = tf.layers.dropout(hidden, rate=0.5)
             hidden = tf.layers.dense(hidden, self.n_hidden_width, activation=activation,
                                      use_bias=use_bias, kernel_initializer=weight_initializer)
+            if self.dropout:
+                hidden = tf.layers.dropout(hidden, rate=0.5)
                 #  Extract weights
         # weightsInMean1 = tf.get_default_graph().get_tensor_by_name(os.path.split(hidden.name)[0] + '/kernel:0')
         # biasInMean1 = tf.get_default_graph().get_tensor_by_name(os.path.split(hidden.name)[0] + '/bias:0')
