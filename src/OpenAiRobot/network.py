@@ -10,6 +10,7 @@ class PolicyGradientModel:
         self.n_outputs = 1  # options['n_outputs']
         self.learning_rate = options['learning_rate']
         self.discrete_actions = options['discrete_actions']
+        self.dropout = options['dropout']
 
         if(not options['performance']):
             if(self.discrete_actions):
@@ -41,11 +42,13 @@ class PolicyGradientModel:
         for l in range(self.n_hidden_layers):
             if l == 0:
                 hidden = self.input
+            if self.dropout:
+                hidden = tf.layers.dropout(hidden, rate=0.5)
             hidden = tf.layers.dense(hidden, self.n_hidden_width, activation=activation,
                                      use_bias=use_bias, kernel_initializer=weight_initializer)
                 #  Extract weights
-        weightsInMean1 = tf.get_default_graph().get_tensor_by_name(os.path.split(hidden.name)[0] + '/kernel:0')
-        biasInMean1 = tf.get_default_graph().get_tensor_by_name(os.path.split(hidden.name)[0] + '/bias:0')
+        # weightsInMean1 = tf.get_default_graph().get_tensor_by_name(os.path.split(hidden.name)[0] + '/kernel:0')
+        # biasInMean1 = tf.get_default_graph().get_tensor_by_name(os.path.split(hidden.name)[0] + '/bias:0')
 
         output = tf.layers.dense(hidden, self.n_outputs, activation=activation, use_bias=True,
                                  kernel_initializer=weight_initializer)
@@ -53,8 +56,10 @@ class PolicyGradientModel:
         # weightsInMean2 = tf.get_default_graph().get_tensor_by_name(os.path.split(output.name)[0] + '/kernel:0')
         # biasInMean2 = tf.get_default_graph().get_tensor_by_name(os.path.split(output.name)[0] + '/bias:0')
 
-        output_mean_model = tf.nn.tanh(output)  # -1 < actionspace < 1
+        # output_mean_model = tf.nn.tanh(output)  # -1 < actionspace < 1
 
+        output_mean_model = tf.layers.dense(output, self.n_outputs, use_bias=True,
+                                            kernel_initializer=weight_initializer)  # Linear output neuron
 
         # #  Another separate NN for std. deviation modeling
         # const_input = tf.constant(1, dtype=tf.float32, shape=[1,1])
@@ -75,10 +80,14 @@ class PolicyGradientModel:
         #  Use the two networks to model a distribution over the action space
         stddiv = tf.placeholder(tf.float32, shape=[None, 1])
         dist = tf.contrib.distributions.Normal(loc=output_mean_model, scale=stddiv)
+
         action = tf.stop_gradient(dist.sample(name='action'))
-        tf.maximum()
-        log_prob = dist.log_prob(action)
-        loss = -tf.reduce_mean(log_prob)
+        action = tf.maximum(tf.minimum(action, 1), -1)
+
+        # log_prob = dist.log_prob(action)
+        # loss = -tf.reduce_mean(log_prob)
+
+        loss = tf.reduce_mean(tf.squared_difference(action, output_mean_model))
 
         #we want the gradients, extracts them from the cost function
         gradients_and_variables = optimizer.compute_gradients(loss)
@@ -160,6 +169,7 @@ class PolicyGradientModel:
             self.action = graph.get_tensor_by_name('action/Multinomial:0') #  'multinomial/Multinomial:0')
         else:
             self.action = graph.get_tensor_by_name('Normal_1/action/Reshape:0') #  'multinomial/Multinomial:0')
+            self.stddiv = graph.get_tensor_by_name('Placeholder:0')
 
 
     def record_value(self, val, it):
@@ -172,8 +182,9 @@ class PolicyGradientModel:
     def fit_model(self, feed_dict):
         self.sess.run(self.training_op, feed_dict=feed_dict)
 
-    def run_model_performance(self, obs):
-        action_val = self.sess.run(self.action, feed_dict={self.input: obs.reshape(1, self.n_inputs)})
+    def run_model_performance(self, obs, stddiv):
+        action_val = self.sess.run(self.action, feed_dict={self.input: obs.reshape(1, self.n_inputs),
+                                                           self.stddiv: stddiv.reshape(1, 1)})
         return action_val[0][0]
 
     def close(self):

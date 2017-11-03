@@ -86,11 +86,9 @@ class Agent:
                     all_rewards.append(current_rewards)
                     all_gradients.append(current_gradients)
 
-            if epoch % 100 == 0:
-                if epoch == 300:
-                    stddiv = 0.8
-                else:
-                    stddiv *= 0.5
+            if epoch % 300 == 0:
+                stddiv *= 0.5
+            # stddiv *= 0.996
             print("Stddiv: {}".format(stddiv))
             mean_epoch_score = temp_score/float(self.n_games_pr_epoch)
             print("Score: {}".format(mean_epoch_score))
@@ -114,14 +112,17 @@ class Agent:
             score = 0
             done = False
             obs = self.env.reset()
+            frame_count = 0
             while not done:
                 self.__render_env(epoch, self.env)  # Renders only when above limit or show_sim = True
                 if self.discrete_actions:
                     action = self.policy.run_model_performance(obs)
                     obs, reward, done, _ = self.env.step(action)
                 else:
-                    action = self.policy.run_model_performance(obs, 0)
+                    action = self.policy.run_model_performance(obs, np.array([0]))
                     obs, reward, done, _ = self.env.step(np.array([action]))
+                print("frame_count: {}, done: {}".format(frame_count, done))
+                frame_count += 1
                 current_rewards.append(reward)
 
             score += sum(current_rewards)
