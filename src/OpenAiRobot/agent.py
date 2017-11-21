@@ -6,6 +6,19 @@ import matplotlib.pyplot as plt
 from datetime import datetime
 import os
 
+# for simulating with disturbance
+import sys
+import select
+import tty
+import termios
+
+def isData():
+    return select.select([sys.stdin], [], [], 0) == ([sys.stdin], [], [])
+
+
+
+
+
 class Agent:
     def __init__(self, options):
 
@@ -50,7 +63,8 @@ class Agent:
 
     def run_training(self):
         self.env._max_episode_steps = self.max_env_timesteps
-        stddiv = 0.8*2
+        stddiv = 0.8
+
         for epoch in range(self.n_epochs):
             all_rewards = []
             all_gradients = []
@@ -86,9 +100,9 @@ class Agent:
                     all_rewards.append(current_rewards)
                     all_gradients.append(current_gradients)
 
-            if epoch % 100 == 0:
-                stddiv *= 0.5
-            # stddiv *= 0.996
+            # if epoch % 100 == 0:
+            #     stddiv *= 0.5
+            stddiv *= 0.997
             print("Stddiv: {}".format(stddiv))
             mean_epoch_score = temp_score/float(self.n_games_pr_epoch)
             print("Score: {}".format(mean_epoch_score))
@@ -107,26 +121,53 @@ class Agent:
 
     def run_performance(self):
         self.env._max_episode_steps = self.max_env_timesteps
-        for epoch in range(self.n_epochs):
-            current_rewards = []
-            score = 0
-            done = False
-            obs = self.env.reset()
-            frame_count = 0
-            while not done:
-                self.__render_env(epoch, self.env)  # Renders only when above limit or show_sim = True
-                if self.discrete_actions:
-                    action = self.policy.run_model_performance(obs)
-                    obs, reward, done, _ = self.env.step(action)
-                else:
-                    action = self.policy.run_model_performance(obs, np.array([0]))
-                    obs, reward, done, _ = self.env.step(np.array([action]))
-                print("frame_count: {}, done: {}".format(frame_count, done))
-                frame_count += 1
-                current_rewards.append(reward)
 
-            score += sum(current_rewards)
-            print(score)
+        old_settings = termios.tcgetattr(sys.stdin)
+
+        try:
+            tty.setcbreak(sys.stdin.fileno())
+            for epoch in range(self.n_epochs):
+                current_rewards = []
+                score = 0
+                done = False
+                obs = self.env.reset()
+                frame_count = 0
+                while not done:
+                    self.__render_env(epoch, self.env)  # Renders only when above limit or show_sim = True
+
+                    applied_force = 0
+
+                    #  Possibility to apply manual force to cart
+                    if isData():
+                        c = sys.stdin.read(1)
+                        if c == 'a':
+                            applied_force = -1
+                        elif c == 'o':
+                            applied_force = 1
+
+
+                    if self.discrete_actions:
+                        action = self.policy.run_model_performance(obs)
+                        if applied_force != 0:
+                            action = applied_force
+                        obs, reward, done, _ = self.env.step(action)
+                    else:
+                        action = self.policy.run_model_performance(obs, np.array([0]))
+                        if applied_force != 0:
+                            action = applied_force
+                        obs, reward, done, _ = self.env.step(np.array([action]))
+                    #print("frame_count: {}, done: {}".format(frame_count, done))
+                    frame_count += 1
+                    current_rewards.append(reward)
+
+                score += sum(current_rewards)
+                print(score)
+
+
+        finally:
+            print('done')
+            termios.tcsetattr(sys.stdin, termios.TCSADRAIN, old_settings)
+
 
     def plot_and_save_scores_and_model(self):
         plt.ioff()
@@ -196,5 +237,5 @@ class Agent:
         return folder_path
 
     def __exit__(self, *a):
-        self.policy.close();
+        self.policy.close()
         print("In exit.")

@@ -11,12 +11,13 @@ class PolicyGradientModel:
         self.learning_rate = options['learning_rate']
         self.discrete_actions = options['discrete_actions']
         self.dropout = options['dropout']
+        self.l2_reg = options['l2_reg']
 
         if(not options['performance']):
             if(self.discrete_actions):
                 self.training_op, self.action, self.gradients, self.gradient_placeholders = self.__build_discrete_model()
             else:
-                self.training_op, self.action, self.gradients, self.gradient_placeholders,self.stddiv = self.__build_continuous_model()
+                self.training_op, self.action, self.gradients, self.gradient_placeholders, self.stddiv = self.__build_continuous_model()
             self.saver = tf.train.Saver()
 
         self.sess = tf.Session()
@@ -24,10 +25,10 @@ class PolicyGradientModel:
         self.init.run(session=self.sess)
 
 
-
         self.tensorflow_writer = tf.summary.FileWriter('tensorboard', self.sess.graph)
 
     def __build_continuous_model(self):
+        regularizer = tf.contrib.layers.l2_regularizer(scale=self.l2_reg)
         #Heavily inspired by code from "Hands-On Machine learning"
         optimizer = tf.train.AdamOptimizer(self.learning_rate)
         activation = tf.nn.relu #hidden layer activation function
@@ -45,7 +46,8 @@ class PolicyGradientModel:
             if l == 0:
                 hidden = self.input
             hidden = tf.layers.dense(hidden, self.n_hidden_width, activation=activation,
-                                     use_bias=use_bias, kernel_initializer=weight_initializer)
+                                     use_bias=use_bias, kernel_initializer=weight_initializer,
+                                     kernel_regularizer=regularizer)
             if self.dropout:
                 hidden = tf.layers.dropout(hidden, rate=0.5)
                 #  Extract weights
@@ -53,7 +55,7 @@ class PolicyGradientModel:
         # biasInMean1 = tf.get_default_graph().get_tensor_by_name(os.path.split(hidden.name)[0] + '/bias:0')
 
         output = tf.layers.dense(hidden, self.n_outputs, activation=activation, use_bias=True,
-                                 kernel_initializer=weight_initializer)
+                                 kernel_initializer=weight_initializer,kernel_regularizer=regularizer)
         #  Extract weights
         # weightsInMean2 = tf.get_default_graph().get_tensor_by_name(os.path.split(output.name)[0] + '/kernel:0')
         # biasInMean2 = tf.get_default_graph().get_tensor_by_name(os.path.split(output.name)[0] + '/bias:0')

@@ -13,6 +13,7 @@ options = {'env': env,
            'learning_rate': 1,
            'max_env_timesteps': 1000,
            'session_name': 'performance',
+           'l2_reg': False,
            'dropout': False,
            'performance': True}
 
