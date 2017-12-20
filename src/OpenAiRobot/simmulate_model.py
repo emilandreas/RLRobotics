@@ -1,8 +1,10 @@
 import agent
 
-env = 'ContinuousCartPole-v0'
+# env = 'ContinuousCartPole-v0'
+# env = 'MountainCar-v0'
 # env = 'MountainCarContinuous-v0'
-# env = 'CartPole-v0'
+# env = 'LunarLanderContinuous-v2'
+env = 'CartPole-v0'
 options = {'env': env,
            'n_max_epochs': 3000,
            'n_games_pr_epoch': 10,
@@ -20,7 +22,10 @@ options = {'env': env,
 with agent.Agent(options) as cart_agent:
     #cart_agent = agent.Agent(options)
     try:
-        path = 'training_log/ContinuousCartRunWstddiv/2017-11-02_10_13_30'
+        # path = '/home/emilal/Documents/RLRobotics/src/OpenAiRobot/training_log/DiscreteMountainCart/2017-12-03_11_10_31'
+        # path = '/home/emilal/Documents/RLRobotics/src/OpenAiRobot/training_log/LunarLanderContinuous/2017-12-03_16_35_29'
+        path ='/home/emilal/Documents/RLRobotics/src/OpenAiRobot/training_log/DiscreteCartPoleWith_only_1/2017-12-06_13_01_33'
+        # path = 'training_log/ContinuousCartRunWstddiv/2017-11-02_10_13_30'
         # path = 'training_log/ContinuousCartRun/2017-10-30_15_14_52'
         # path = 'training_log/over_weekend_1/2017-09-15_20_33_01'
         # path = 'training_log/testytest/2017-10-23_14_12_13'

@@ -7,7 +7,7 @@ class PolicyGradientModel:
         self.n_inputs = options['n_inputs']
         self.n_hidden_layers = options['n_hidden_layers']
         self.n_hidden_width = options['n_hidden_width']
-        self.n_outputs = 1  # options['n_outputs']
+        self.n_outputs = 1 #options['n_outputs']
         self.learning_rate = options['learning_rate']
         self.discrete_actions = options['discrete_actions']
         self.dropout = options['dropout']
@@ -20,6 +20,7 @@ class PolicyGradientModel:
                 self.training_op, self.action, self.gradients, self.gradient_placeholders, self.stddiv = self.__build_continuous_model()
             self.saver = tf.train.Saver()
 
+        #self.critic = self._build_critic()
         self.sess = tf.Session()
         self.init = tf.global_variables_initializer()
         self.init.run(session=self.sess)
@@ -27,8 +28,37 @@ class PolicyGradientModel:
 
         self.tensorflow_writer = tf.summary.FileWriter('tensorboard', self.sess.graph)
 
+    def _build_critic(self):
+        optimizer = tf.train.AdamOptimizer(self.learning_rate)
+        activation = tf.nn.relu  # hidden layer activation function
+
+        #define inializer rule for the weights
+        weight_initializer = tf.contrib.layers.variance_scaling_initializer(factor=4.0)
+        use_bias = True
+
+        n_hidden_layers = 1
+        n_hidden_width = 16
+
+        with tf.name_scope("layer_input"):
+            self.input = tf.placeholder(tf.float32, shape=[None, self.n_inputs], name='input')
+        # if self.dropout:
+        #     self.input = tf.layers.dropout(self.input, rate=0.5)
+        for l in range(n_hidden_layers):
+            if l == 0:
+                hidden = self.input
+            hidden = tf.layers.dense(hidden, self.n_hidden_width, activation=activation,
+                                     use_bias=use_bias, kernel_initializer=weight_initializer)
+
+
+        output = tf.layers.dense(hidden, self.n_outputs, activation=activation, use_bias=True,
+                                 kernel_initializer=weight_initializer)
+        self.critic_target = tf.placeholder(tf.float32, shape=[None, 1])
+        loss = tf.reduce_mean(tf.pow(output - self.critic_target, 2))
+        self.critic_optimizer = tf.train.AdamOptimizer(self.learning_rate).minimize(loss)
+
+
     def __build_continuous_model(self):
-        regularizer = tf.contrib.layers.l2_regularizer(scale=self.l2_reg)
+        regularizer = None #tf.contrib.layers.l2_regularizer(scale=self.l2_reg)
         #Heavily inspired by code from "Hands-On Machine learning"
         optimizer = tf.train.AdamOptimizer(self.learning_rate)
         activation = tf.nn.relu #hidden layer activation function
@@ -83,16 +113,22 @@ class PolicyGradientModel:
 
         #  Use the two networks to model a distribution over the action space
         stddiv = tf.placeholder(tf.float32, shape=[None, 1])
+
         dist = tf.contrib.distributions.Normal(loc=output_mean_model, scale=stddiv)
 
         action = tf.stop_gradient(dist.sample(name='action'))
-        action = tf.maximum(tf.minimum(action, 1), -1)
+        # action = dist.sample(name='action')
+        action = tf.clip_by_value(action, -1, 1, name='action')
+
+
+        #action = tf.maximum(tf.minimum(action, 1), -1)
 
         # log_prob = dist.log_prob(action)
         # loss = -tf.reduce_mean(log_prob)
 
         loss = tf.reduce_mean(tf.squared_difference(action, output_mean_model))
-
+        # loss = -dist.log_prob(action)
+        loss -= 1e-1 * dist.entropy()
         #we want the gradients, extracts them from the cost function
         gradients_and_variables = optimizer.compute_gradients(loss)
         gradients = [grad for grad, variable in gradients_and_variables]
@@ -171,25 +207,41 @@ class PolicyGradientModel:
         self.input = graph.get_tensor_by_name('layer_input/input:0')  # 'Placeholder:0')
         if self.discrete_actions:
             self.action = graph.get_tensor_by_name('action/Multinomial:0') #  'multinomial/Multinomial:0')
+            # self.action = graph.get_tensor_by_name('clip_by_value:0') #  'multinomial/Multinomial:0')
         else:
             self.action = graph.get_tensor_by_name('Normal_1/action/Reshape:0') #  'multinomial/Multinomial:0')
             self.stddiv = graph.get_tensor_by_name('Placeholder:0')
+        dummy = 0
 
 
     def record_value(self, val, it):
         self.tensorflow_writer.add_summary(val, it)
 
     def run_model(self, obs, stddiv):
-        action_val, grads_val = self.sess.run([self.action, self.gradients],
-                              feed_dict={self.input: obs.reshape(1, self.n_inputs),self.stddiv: stddiv.reshape(1, 1)})
-        return action_val[0][0], grads_val
+        if self.discrete_actions:
+            action_val, grads_val = self.sess.run([self.action, self.gradients],
+                                                  feed_dict={self.input: obs.reshape(1, self.n_inputs)})
+        else:
+
+            action_val, grads_val = self.sess.run([self.action, self.gradients],
+                                  feed_dict={self.input: obs.reshape(1, self.n_inputs),self.stddiv: stddiv.reshape(1, 1)})
+        return action_val[0], grads_val
+    def run_critic(self, obs):
+        return 0
+
+
     def fit_model(self, feed_dict):
         self.sess.run(self.training_op, feed_dict=feed_dict)
-
+    def fit_critic_model(self):
+        return 0
     def run_model_performance(self, obs, stddiv):
-        action_val = self.sess.run(self.action, feed_dict={self.input: obs.reshape(1, self.n_inputs),
-                                                           self.stddiv: stddiv.reshape(1, 1)})
-        return action_val[0][0]
+        if self.discrete_actions:
+            action_val = self.sess.run(self.action, feed_dict={self.input: obs.reshape(1, self.n_inputs)})
+
+        else:
+            action_val = self.sess.run(self.action, feed_dict={self.input: obs.reshape(1, self.n_inputs),
+                                                               self.stddiv: stddiv.reshape(1, 1)})
+        return action_val[0]
 
     def close(self):
         #self.sess.close()

@@ -4,21 +4,25 @@ import time
 
 ##################################################
 # NAME THE SESSION
-session = 'ContinuousCartHiddenLayer'
-
+session = 'AContinuousCartPole_discount_809599'
+session = 'AcontinuousCartPole_width'
+session = 'ContONLYONE'
+# session = 'MountainCarRevisited'
 # Set parameters
 # env = 'Pendulum-v0'
 # env = 'CartPole-v0'
 env = 'ContinuousCartPole-v0'
+# env = 'CartPole-v0'
+# env = 'LunarLanderContinuous-v2'
 # env = 'MountainCarContinuous-v0'
-n_max_epochs = 1000
+n_max_epochs = 10000
 n_games_pr_epoch = 100
-discount_rate_grid = [0.95]
+discount_rate_grid = [0.99]
 max_env_timesteps = 1000
 
 learning_rates_grid = [0.01]
-n_hidden_layers_grid = [2]
-n_hidden_width_grid = [10]
+n_hidden_layers_grid = [1]
+n_hidden_width_grid = [1]
 ##################################################
 
 #  Run training session
@@ -37,8 +41,8 @@ for discount_rate in discount_rate_grid:
                            'learning_rate': learning_rate,
                            'max_env_timesteps': max_env_timesteps,
                            'session_name': session,
-                           'dropout': False,
-                           'l2_reg': 0.1,
+                           'dropout': True,
+                           'l2_reg': 0,
                            'performance': False}
 
                 tf.reset_default_graph()
